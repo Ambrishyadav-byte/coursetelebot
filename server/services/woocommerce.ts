@@ -1,9 +1,59 @@
-import WooCommerceRestApi from '@woocommerce/woocommerce-rest-api';
+// Import axios for direct API requests to WooCommerce
+import axios from 'axios';
 import { logError, logInfo } from '../utils/logger';
 import { getWooCommerceConfig } from './apiConfigManager';
 
-// Create a function to get a configured WooCommerce client
-async function getWooCommerceClient(): Promise<WooCommerceRestApi | null> {
+// Config type for WooCommerce API
+interface WooCommerceConfig {
+  url: string;
+  consumerKey: string;
+  consumerSecret: string;
+}
+
+// Create a function to fetch from WooCommerce API
+async function wooCommerceRequest(endpoint: string, config: WooCommerceConfig): Promise<any> {
+  try {
+    // Build the base URL for WooCommerce API
+    let baseUrl = config.url;
+    if (!baseUrl.startsWith('http://') && !baseUrl.startsWith('https://')) {
+      baseUrl = 'https://' + baseUrl;
+    }
+    
+    // Remove trailing slash if present
+    if (baseUrl.endsWith('/')) {
+      baseUrl = baseUrl.slice(0, -1);
+    }
+    
+    // Construct the full URL with wp-json endpoint
+    const url = `${baseUrl}/wp-json/wc/v3/${endpoint}`;
+    
+    // Make the request with basic auth headers
+    const response = await axios.get(url, {
+      auth: {
+        username: config.consumerKey,
+        password: config.consumerSecret
+      }
+    });
+    
+    return response.data;
+  } catch (error) {
+    // Log the error message
+    logError(`WooCommerce API error: ${error instanceof Error ? error.message : String(error)}`);
+    
+    // Handle Axios specific error data
+    if (error && typeof error === 'object' && 'response' in error) {
+      const axiosError = error as any;
+      if (axiosError.response) {
+        logError(`Response status: ${axiosError.response.status}, data: ${JSON.stringify(axiosError.response.data)}`);
+      }
+    }
+    
+    throw error;
+  }
+}
+
+// Get the WooCommerce configuration
+async function getWooCommerceAPIConfig(): Promise<WooCommerceConfig | null> {
   try {
     const config = await getWooCommerceConfig();
     
@@ -18,29 +68,14 @@ async function getWooCommerceClient(): Promise<WooCommerceRestApi | null> {
       return null;
     }
     
-    // Validate URL with a proper protocol
-    let url = config.url;
-    if (!url.startsWith('http://') && !url.startsWith('https://')) {
-      url = 'https://' + url;
-    }
-    
-    // Remove trailing slash if present
-    if (url.endsWith('/')) {
-      url = url.slice(0, -1);
-    }
-
-    const client = new WooCommerceRestApi({
-      url,
+    return {
+      url: config.url,
       consumerKey: config.credentials.consumerKey,
-      consumerSecret: config.credentials.consumerSecret,
-      version: 'wc/v3'
-    });
-    
-    logInfo(`WooCommerce client initialized with URL: ${url}`);
-    return client;
+      consumerSecret: config.credentials.consumerSecret
+    };
   } catch (error) {
     if (error instanceof Error) {
-      logError(`Error creating WooCommerce client: ${error.message}`);
+      logError(`Error getting WooCommerce config: ${error.message}`);
     }
     return null;
   }
@@ -118,14 +153,15 @@ export async function getOrderById(orderId: string): Promise<OrderData | null> {
   try {
     logInfo(`Fetching WooCommerce order: ${orderId}`);
     
-    const wooCommerce = await getWooCommerceClient();
-    if (!wooCommerce) {
-      logError('WooCommerce client initialization failed');
+    const config = await getWooCommerceAPIConfig();
+    if (!config) {
+      logError('WooCommerce configuration not found');
       return null;
     }
     
-    const response = await wooCommerce.get(`orders/${orderId}`);
-    return response.data;
+    // Fetch the order data directly
+    const data = await wooCommerceRequest(`orders/${orderId}`, config);
+    return data;
   } catch (error) {
     if (error instanceof Error) {
       logError(`Failed to fetch WooCommerce order: ${error.message}`);
