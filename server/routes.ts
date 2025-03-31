@@ -1,7 +1,7 @@
 import express, { type Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { bot } from "./services/telegramBot";
+import { getBot } from "./services/telegramBot";
 import {
   insertUserSchema,
   insertCourseSchema,
@@ -72,6 +72,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const users = await storage.getAllUsers();
       res.json(users);
+    } catch (error) {
+      handleError(res, error);
+    }
+  });
+  
+  // Get user by ID
+  adminRouter.get("/users/:id", async (req, res) => {
+    try {
+      const userId = parseInt(req.params.id, 10);
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      res.json(user);
     } catch (error) {
       handleError(res, error);
     }

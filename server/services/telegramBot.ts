@@ -39,6 +39,9 @@ export async function initTelegramBot(): Promise<TelegramBot | null> {
       logInfo("Telegram bot initialized from database configuration");
     }
     
+    // Register the event handlers
+    await registerBotHandlers(botInstance);
+    
     return botInstance;
   } catch (error) {
     if (error instanceof Error) {
@@ -435,6 +438,7 @@ bot.on('callback_query', async (callbackQuery) => {
 async function sendCourseMenu(chatId: number) {
   try {
     const courses = await storage.getActiveCourses();
+    const bot = await getBot();
     
     if (courses.length === 0) {
       bot.sendMessage(chatId, '📕 No courses available at the moment.');
@@ -458,15 +462,17 @@ async function sendCourseMenu(chatId: number) {
 }
 
 // Error handler
-function handleBotError(chatId: number, error: unknown) {
+async function handleBotError(chatId: number, error: unknown) {
   const errorMessage = error instanceof Error ? error.message : 'Unknown error';
   logError(`Telegram bot error: ${errorMessage}`);
   
-  bot.sendMessage(chatId, '❌ An error occurred. Please try again later or contact support.');
+  try {
+    const bot = await getBot();
+    bot.sendMessage(chatId, '❌ An error occurred. Please try again later or contact support.');
+  } catch (err) {
+    logError(`Failed to send error message to user: ${err}`);
+  }
 }
 
 // Log startup
 console.log('Telegram bot service started');
-
-// Export bot instance
-export { bot };

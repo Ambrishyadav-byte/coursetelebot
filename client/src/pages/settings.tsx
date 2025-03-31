@@ -6,6 +6,7 @@ import { useToast } from '@/hooks/use-toast';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
+import { insertAdminUserSchema } from '@shared/schema';
 import { 
   Card,
   CardContent,
@@ -69,8 +70,18 @@ const Settings: React.FC = () => {
   const [isSavingWoocommerce, setIsSavingWoocommerce] = useState(false);
   const [isSavingPassword, setIsSavingPassword] = useState(false);
   const [isSavingPassphrase, setIsSavingPassphrase] = useState(false);
+  const [isCreatingAdmin, setIsCreatingAdmin] = useState(false);
 
   // Forms
+  const adminUserForm = useForm({
+    resolver: zodResolver(insertAdminUserSchema),
+    defaultValues: {
+      username: "",
+      password: "",
+      passphrase: "",
+    },
+  });
+
   const telegramForm = useForm<z.infer<typeof telegramSettingsSchema>>({
     resolver: zodResolver(telegramSettingsSchema),
     defaultValues: {
@@ -210,6 +221,39 @@ const Settings: React.FC = () => {
         setIsSavingPassphrase(false);
       });
   };
+  
+  // Handle admin user creation
+  const onCreateAdminUser = (data: any) => {
+    setIsCreatingAdmin(true);
+    
+    // Make API call to create a new admin user
+    apiRequest("POST", "/api/admins", {
+      username: data.username,
+      password: data.password,
+      passphrase: data.passphrase
+    })
+      .then(() => {
+        toast({
+          title: "Admin User Created",
+          description: `New admin user "${data.username}" has been created successfully.`,
+        });
+        adminUserForm.reset({
+          username: "",
+          password: "",
+          passphrase: ""
+        });
+      })
+      .catch((error) => {
+        toast({
+          title: "Failed to create admin user",
+          description: error.message || "An error occurred while creating the admin user",
+          variant: "destructive",
+        });
+      })
+      .finally(() => {
+        setIsCreatingAdmin(false);
+      });
+  };
 
   return (
     <Layout>
@@ -226,6 +270,7 @@ const Settings: React.FC = () => {
           <TabsTrigger value="telegram">Telegram Bot</TabsTrigger>
           <TabsTrigger value="woocommerce">WooCommerce</TabsTrigger>
           <TabsTrigger value="security">Security</TabsTrigger>
+          <TabsTrigger value="admins">Admins</TabsTrigger>
         </TabsList>
 
         {/* Account Settings */}
@@ -464,6 +509,72 @@ const Settings: React.FC = () => {
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+        
+        {/* Admin Users Management */}
+        <TabsContent value="admins">
+          <Card>
+            <CardHeader>
+              <CardTitle>Add Admin User</CardTitle>
+              <CardDescription>
+                Create additional administrator accounts for system management.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Form {...adminUserForm}>
+                <form onSubmit={adminUserForm.handleSubmit(onCreateAdminUser)} className="space-y-4">
+                  <FormField
+                    control={adminUserForm.control}
+                    name="username"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Username</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Enter username" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={adminUserForm.control}
+                    name="password"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Password</FormLabel>
+                        <FormControl>
+                          <Input type="password" placeholder="Enter password" {...field} />
+                        </FormControl>
+                        <FormDescription>
+                          Password must be at least 8 characters long.
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={adminUserForm.control}
+                    name="passphrase"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Recovery Passphrase</FormLabel>
+                        <FormControl>
+                          <Input type="password" placeholder="Recovery passphrase for password reset" {...field} />
+                        </FormControl>
+                        <FormDescription>
+                          Optional. Provide a recovery passphrase for password reset purposes.
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <Button type="submit" disabled={isCreatingAdmin}>
+                    {isCreatingAdmin ? "Creating..." : "Create Admin User"}
+                  </Button>
+                </form>
+              </Form>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </Layout>
