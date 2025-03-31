@@ -256,11 +256,23 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteCourse(id: number): Promise<boolean> {
-    const result = await db
-      .delete(courses)
-      .where(eq(courses.id, id))
-      .returning({ id: courses.id });
-    return result.length > 0;
+    try {
+      // First delete all subcontents related to this course
+      await db
+        .delete(courseSubcontents)
+        .where(eq(courseSubcontents.courseId, id));
+      
+      // Then delete the course itself
+      const result = await db
+        .delete(courses)
+        .where(eq(courses.id, id))
+        .returning({ id: courses.id });
+        
+      return result.length > 0;
+    } catch (error) {
+      console.error("Error deleting course:", error);
+      throw error;
+    }
   }
 
   // Course Subcontent methods
