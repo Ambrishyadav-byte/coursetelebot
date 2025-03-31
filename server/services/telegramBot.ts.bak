@@ -656,4 +656,3 @@ async function sendAboutUsInfo(chatId: number) {
 }
 
 
-}
