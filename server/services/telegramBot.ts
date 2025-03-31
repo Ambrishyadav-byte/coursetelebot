@@ -597,7 +597,7 @@ async function sendSupportInfo(chatId: number) {
     
     const keyboard: any[][] = [
       [
-        { text: '✉️ Email Support', url: 'mailto:support@example.com' }
+        { text: '✉️ Email Support', url: 'https://example.com/contact' }
       ],
       [
         { text: '🌐 Help Center', url: 'https://example.com/help' }
