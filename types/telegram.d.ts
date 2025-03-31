@@ -91,6 +91,18 @@ declare module 'node-telegram-bot-api' {
       url?: string;
       cache_time?: number;
     }
+    
+    interface InlineKeyboardButton {
+      text: string;
+      url?: string;
+      callback_data?: string;
+      web_app?: any;
+      login_url?: any;
+      switch_inline_query?: string;
+      switch_inline_query_current_chat?: string;
+      callback_game?: any;
+      pay?: boolean;
+    }
   }
 
   class TelegramBot {

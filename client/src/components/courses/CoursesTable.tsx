@@ -6,6 +6,7 @@ import { Course } from '@shared/schema';
 import { formatDistanceToNow } from 'date-fns';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
+import { Link } from '@/components/ui/link';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,7 +17,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Edit, Trash2 } from 'lucide-react';
+import { Edit, Trash2, ListVideo } from 'lucide-react';
 
 interface CoursesTableProps {
   onEditCourse: (course: Course) => void;
@@ -168,6 +169,17 @@ const CoursesTable: React.FC<CoursesTableProps> = ({ onEditCourse }) => {
                       disabled={toggleActiveMutation.isPending}
                     >
                       {course.isActive ? 'Deactivate' : 'Activate'}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      asChild
+                      className="mr-2"
+                    >
+                      <Link href={`/courses/${course.id}`}>
+                        <ListVideo className="h-4 w-4 mr-1" />
+                        Manage Lessons
+                      </Link>
                     </Button>
                     <Button
                       variant="ghost"

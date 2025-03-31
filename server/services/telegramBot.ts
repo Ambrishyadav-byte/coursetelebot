@@ -141,19 +141,19 @@ const userStates = new Map<number, UserState>();
 
 // Welcome message
 const welcomeMessage = `
-🎓 *Welcome to our Course Learning Bot!* 🎓
+🎓 *Welcome to our Premium Course Learning Bot!* 🎓
 
-This bot provides access to our premium educational content.
+This bot provides access to our premium educational content and resources.
 
 To get started:
 1️⃣ Verify your purchase with your email and order ID
-2️⃣ Browse available courses
-3️⃣ Access course materials anytime
+2️⃣ Browse available courses and lessons
+3️⃣ Access course materials anytime, anywhere
 
 *Commands:*
-/start - Begin or restart verification
-/courses - View available courses
-/help - Show this help message
+/start - 🔄 Begin or restart verification
+/courses - 📚 View all available courses
+/help - ℹ️ Show this help message
 
 If you've already purchased a course from our website, please proceed with verification. Otherwise, visit our website to make a purchase first.
 `;
@@ -466,13 +466,27 @@ bot.on('callback_query', async (callbackQuery) => {
         return;
       }
       
-      // Send subcontent
-      await bot.sendMessage(chatId, `*${subcontent.title}*\n\n${subcontent.content}`, {
+      // Send subcontent with URL if available
+      let message = `*${subcontent.title}*\n\n${subcontent.content}`;
+      let keyboard: any[][] = [[
+        { text: '« Back to Course', callback_data: `course_${subcontent.courseId}` }
+      ]];
+      
+      // Add URL button if available
+      if (subcontent.url) {
+        message += '\n\n📎 Access the material using the button below:';
+        keyboard.unshift([
+          { 
+            text: '🔗 Open Lesson Material', 
+            url: subcontent.url 
+          }
+        ]);
+      }
+      
+      await bot.sendMessage(chatId, message, {
         parse_mode: 'Markdown',
         reply_markup: {
-          inline_keyboard: [[
-            { text: '« Back to Course', callback_data: `course_${subcontent.courseId}` }
-          ]]
+          inline_keyboard: keyboard
         }
       });
       
@@ -505,15 +519,26 @@ async function sendCourseMenu(chatId: number) {
     const bot = await getBot();
     
     if (courses.length === 0) {
-      bot.sendMessage(chatId, '📕 No courses available at the moment.');
+      bot.sendMessage(chatId, '📕 No courses available at the moment. Please check back later.');
       return;
     }
     
-    const keyboard = courses.map(course => [
-      { text: course.title, callback_data: `course_${course.id}` }
+    // Course emoji indicators based on position
+    const courseEmojis = ['🔵', '🟢', '🟠', '🟣', '🔴', '🟡', '⚫'];
+    
+    const keyboard: any[][] = courses.map((course, index) => [
+      { 
+        text: `${courseEmojis[index % courseEmojis.length]} ${course.title}`, 
+        callback_data: `course_${course.id}` 
+      }
     ]);
     
-    await bot.sendMessage(chatId, '📚 *Available Courses:*', {
+    // Add a refresh button
+    keyboard.push([
+      { text: '🔄 Refresh Course List', callback_data: 'courses_menu' }
+    ]);
+    
+    await bot.sendMessage(chatId, '📚 *Available Courses:*\n\nSelect a course to view its content and lessons:', {
       parse_mode: 'Markdown',
       reply_markup: {
         inline_keyboard: keyboard

@@ -49,6 +49,7 @@ export const courseSubcontents = pgTable("course_subcontents", {
   courseId: integer("course_id").notNull().references(() => courses.id),
   title: text("title").notNull(),
   content: text("content").notNull(),
+  url: text("url"),
   orderIndex: integer("order_index").notNull().default(0),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
