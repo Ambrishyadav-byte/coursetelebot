@@ -190,8 +190,9 @@ export async function sendNotificationToUsers(notification: {
 
 // User state management
 interface UserState {
-  step: 'START' | 'EMAIL' | 'ORDER_ID';
+  step: 'START' | 'EMAIL' | 'ORDER_ID' | 'SEARCH';
   email?: string;
+  searchQuery?: string;
 }
 
 const userStates = new Map<number, UserState>();
@@ -210,6 +211,7 @@ To get started:
 *Commands:*
 /start - 🔄 Begin or restart verification
 /courses - 📚 View all available courses
+/search - 🔍 Search for courses by keyword
 /help - ℹ️ Show this help message
 
 If you've already purchased a course from our website, please proceed with verification. Otherwise, visit our website to make a purchase first.
@@ -305,7 +307,42 @@ bot.onText(/\/courses/, async (msg) => {
   }
 });
 
-// Handle text messages (for email, order ID inputs)
+// Handle search command
+bot.onText(/\/search/, async (msg) => {
+  const chatId = msg.chat.id;
+  const telegramId = String(chatId);
+  
+  try {
+    const user = await storage.getUserByTelegramId(telegramId);
+    
+    if (!user) {
+      bot.sendMessage(chatId, '⚠️ Please use /start to register and verify your purchase first.');
+      return;
+    }
+    
+    if (user.isBanned) {
+      bot.sendMessage(chatId, '🚫 Your account has been banned. Please contact support for assistance.');
+      return;
+    }
+    
+    if (!user.isVerified) {
+      bot.sendMessage(chatId, '⚠️ Your account is not verified yet. Please complete the verification process first.');
+      return;
+    }
+    
+    // Set user state to search mode
+    userStates.set(chatId, { step: 'SEARCH' });
+    
+    bot.sendMessage(chatId, '🔍 *Course Search*\n\nPlease enter a keyword to search for courses:', {
+      parse_mode: 'Markdown'
+    });
+    
+  } catch (error) {
+    handleBotError(chatId, error);
+  }
+});
+
+// Handle text messages (for email, order ID inputs, and search)
 bot.on('message', async (msg) => {
   if (!msg.text || msg.text.startsWith('/')) return;
   
@@ -327,6 +364,89 @@ bot.on('message', async (msg) => {
   }
   
   try {
+    // Handle search input
+    if (state.step === 'SEARCH') {
+      const query = sanitizeString(text);
+      
+      if (query.length < 2) {
+        bot.sendMessage(chatId, '❌ Please provide a longer search term (at least 2 characters).');
+        return;
+      }
+      
+      // Clear search state
+      userStates.delete(chatId);
+      
+      // Show loading message
+      const waitMessage = await bot.sendMessage(chatId, '🔍 Searching courses...');
+      
+      // Get all active courses
+      const allCourses = await storage.getActiveCourses();
+      
+      // Filter courses by search query (case insensitive)
+      const searchTermLower = query.toLowerCase();
+      const matchedCourses = allCourses.filter(course => {
+        return (
+          course.title.toLowerCase().includes(searchTermLower) ||
+          course.description.toLowerCase().includes(searchTermLower) ||
+          course.content.toLowerCase().includes(searchTermLower)
+        );
+      });
+      
+      // Edit loading message with results
+      if (matchedCourses.length === 0) {
+        await bot.editMessageText(`🔍 No courses found matching "${query}"\n\nTry a different search term or browse all courses with /courses`, {
+          chat_id: chatId,
+          message_id: waitMessage.message_id,
+          reply_markup: {
+            inline_keyboard: [[
+              { text: '🔄 New Search', callback_data: 'new_search' },
+              { text: '📚 All Courses', callback_data: 'courses_menu' }
+            ]]
+          }
+        });
+        return;
+      }
+      
+      // Show search results
+      await bot.editMessageText(`🔍 Found ${matchedCourses.length} course${matchedCourses.length > 1 ? 's' : ''} matching "${query}":`, {
+        chat_id: chatId,
+        message_id: waitMessage.message_id
+      });
+      
+      // Course emoji indicators based on position
+      const courseEmojis = ['🔵', '🟢', '🟠', '🟣', '🔴', '🟡', '⚫'];
+      
+      // Create keyboard for search results
+      const keyboard: any[][] = matchedCourses.map((course, index) => [
+        { 
+          text: `${courseEmojis[index % courseEmojis.length]} ${course.title}`, 
+          callback_data: `course_${course.id}` 
+        }
+      ]);
+      
+      // Add navigation buttons
+      keyboard.push([
+        { text: '🔍 New Search', callback_data: 'new_search' },
+        { text: '📚 All Courses', callback_data: 'courses_menu' }
+      ]);
+      
+      // Send results as a new message
+      await bot.sendMessage(chatId, '📚 *Search Results:*\n\nSelect a course to view its content:', {
+        parse_mode: 'Markdown',
+        reply_markup: {
+          inline_keyboard: keyboard
+        }
+      });
+      
+      // Log search event
+      const user = await storage.getUserByTelegramId(telegramId);
+      if (user) {
+        logUserEvent(`User searched for courses: "${query}" (Found ${matchedCourses.length} results)`, user.id);
+      }
+      
+      return;
+    }
+    
     // Handle email input
     if (state.step === 'EMAIL') {
       const sanitizedEmail = sanitizeString(text);
@@ -572,6 +692,18 @@ bot.on('callback_query', async (callbackQuery) => {
       return;
     }
     
+    if (data === 'new_search') {
+      // Set user state to search mode
+      userStates.set(chatId, { step: 'SEARCH' });
+      
+      bot.sendMessage(chatId, '🔍 *Course Search*\n\nPlease enter a keyword to search for courses:', {
+        parse_mode: 'Markdown'
+      });
+      
+      bot.answerCallbackQuery(callbackQuery.id);
+      return;
+    }
+    
   } catch (error) {
     handleBotError(chatId, error);
     bot.answerCallbackQuery(callbackQuery.id, { 
@@ -616,15 +748,14 @@ async function sendCourseMenu(chatId: number) {
     ]);
     
     // Add main navigation buttons
-    // Add Support and About Us buttons
     keyboard.push([
       { text: '📚 Courses', callback_data: 'courses_menu' },
-      { text: '🧑‍💼 Support', callback_data: 'support' }
+      { text: '🔍 Search', callback_data: 'new_search' }
     ]);
     
     keyboard.push([
-      { text: 'ℹ️ About Us', callback_data: 'about_us' },
-      { text: '🔄 Refresh', callback_data: 'courses_menu' }
+      { text: '🧑‍💼 Support', callback_data: 'support' },
+      { text: 'ℹ️ About Us', callback_data: 'about_us' }
     ]);
     
     await bot.sendMessage(chatId, '📚 *Available Courses:*\n\nSelect a course to view its content and lessons:', {
