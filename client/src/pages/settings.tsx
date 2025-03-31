@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, useQuery } from '@tanstack/react-query';
 import Layout from '@/components/layout/Layout';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { insertAdminUserSchema } from '@shared/schema';
+import { apiRequest, getQueryFn } from '@/lib/queryClient';
 import { 
   Card,
   CardContent,
@@ -29,7 +30,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { apiRequest } from '@/lib/queryClient';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 // Schema for telegram bot settings
 const telegramSettingsSchema = z.object({
@@ -71,6 +72,12 @@ const Settings: React.FC = () => {
   const [isSavingPassword, setIsSavingPassword] = useState(false);
   const [isSavingPassphrase, setIsSavingPassphrase] = useState(false);
   const [isCreatingAdmin, setIsCreatingAdmin] = useState(false);
+  
+  // Fetch admin users list
+  const { data: adminUsers = [], isLoading: isLoadingAdminUsers } = useQuery({
+    queryKey: ['/api/admins'],
+    queryFn: getQueryFn<any[]>({ on401: 'throw' })
+  });
 
   // Forms
   const adminUserForm = useForm({
@@ -242,6 +249,9 @@ const Settings: React.FC = () => {
           password: "",
           passphrase: ""
         });
+        
+        // Refresh admin users list
+        queryClient.invalidateQueries({ queryKey: ['/api/admins'] });
       })
       .catch((error) => {
         toast({
@@ -513,68 +523,115 @@ const Settings: React.FC = () => {
         
         {/* Admin Users Management */}
         <TabsContent value="admins">
-          <Card>
-            <CardHeader>
-              <CardTitle>Add Admin User</CardTitle>
-              <CardDescription>
-                Create additional administrator accounts for system management.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Form {...adminUserForm}>
-                <form onSubmit={adminUserForm.handleSubmit(onCreateAdminUser)} className="space-y-4">
-                  <FormField
-                    control={adminUserForm.control}
-                    name="username"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Username</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Enter username" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={adminUserForm.control}
-                    name="password"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Password</FormLabel>
-                        <FormControl>
-                          <Input type="password" placeholder="Enter password" {...field} />
-                        </FormControl>
-                        <FormDescription>
-                          Password must be at least 8 characters long.
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={adminUserForm.control}
-                    name="passphrase"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Recovery Passphrase</FormLabel>
-                        <FormControl>
-                          <Input type="password" placeholder="Recovery passphrase for password reset" {...field} />
-                        </FormControl>
-                        <FormDescription>
-                          Optional. Provide a recovery passphrase for password reset purposes.
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <Button type="submit" disabled={isCreatingAdmin}>
-                    {isCreatingAdmin ? "Creating..." : "Create Admin User"}
-                  </Button>
-                </form>
-              </Form>
-            </CardContent>
-          </Card>
+          <div className="space-y-6">
+            {/* Admin Users List */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Admin Users</CardTitle>
+                <CardDescription>
+                  List of administrator accounts in the system.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {isLoadingAdminUsers ? (
+                  <div className="text-center py-4">Loading admin users...</div>
+                ) : adminUsers.length === 0 ? (
+                  <div className="text-center py-4 text-muted-foreground">No admin users found.</div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Username</TableHead>
+                        <TableHead>Created At</TableHead>
+                        <TableHead>Last Activity</TableHead>
+                        <TableHead>Recovery Passphrase</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {adminUsers.map((admin) => (
+                        <TableRow key={admin.id}>
+                          <TableCell className="font-medium">{admin.username}</TableCell>
+                          <TableCell>{new Date(admin.createdAt).toLocaleString()}</TableCell>
+                          <TableCell>{admin.lastActivity ? new Date(admin.lastActivity).toLocaleString() : 'Never'}</TableCell>
+                          <TableCell>
+                            {admin.hasPassphrase ? (
+                              <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Set</Badge>
+                            ) : (
+                              <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">Not Set</Badge>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+            
+            {/* Add Admin User Form */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Add Admin User</CardTitle>
+                <CardDescription>
+                  Create additional administrator accounts for system management.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Form {...adminUserForm}>
+                  <form onSubmit={adminUserForm.handleSubmit(onCreateAdminUser)} className="space-y-4">
+                    <FormField
+                      control={adminUserForm.control}
+                      name="username"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Username</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Enter username" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={adminUserForm.control}
+                      name="password"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Password</FormLabel>
+                          <FormControl>
+                            <Input type="password" placeholder="Enter password" {...field} />
+                          </FormControl>
+                          <FormDescription>
+                            Password must be at least 8 characters long.
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={adminUserForm.control}
+                      name="passphrase"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Recovery Passphrase</FormLabel>
+                          <FormControl>
+                            <Input type="password" placeholder="Recovery passphrase for password reset" {...field} />
+                          </FormControl>
+                          <FormDescription>
+                            Optional. Provide a recovery passphrase for password reset purposes.
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <Button type="submit" disabled={isCreatingAdmin}>
+                      {isCreatingAdmin ? "Creating..." : "Create Admin User"}
+                    </Button>
+                  </form>
+                </Form>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
     </Layout>

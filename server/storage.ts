@@ -35,6 +35,7 @@ export interface IStorage {
   unbanUser(id: number): Promise<User | undefined>;
   
   // Admin user methods
+  getAllAdminUsers(): Promise<AdminUser[]>;
   getAdminUserByUsername(username: string): Promise<AdminUser | undefined>;
   validateAdminPassword(username: string, password: string): Promise<AdminUser | undefined>;
   validateAdminPassphrase(username: string, passphrase: string): Promise<AdminUser | undefined>;
@@ -119,6 +120,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Admin user methods
+  async getAllAdminUsers(): Promise<AdminUser[]> {
+    return db.select().from(adminUsers).orderBy(desc(adminUsers.createdAt));
+  }
+  
   async getAdminUserByUsername(username: string): Promise<AdminUser | undefined> {
     const [admin] = await db
       .select()

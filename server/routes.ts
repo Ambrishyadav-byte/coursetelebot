@@ -292,6 +292,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin user management routes
+  adminRouter.get("/admins", async (req, res) => {
+    try {
+      const admins = await storage.getAllAdminUsers();
+      // Remove sensitive information but add hasPassphrase flag
+      const safeAdmins = admins.map(admin => ({
+        ...admin,
+        password: undefined,
+        hasPassphrase: Boolean(admin.passphrase && admin.passphrase.length > 0),
+        passphrase: undefined,
+        // Add last activity timestamp - using created_at for now
+        // In a production app, this would come from a sessions table or activity log
+        lastActivity: admin.updatedAt || admin.createdAt
+      }));
+      res.json(safeAdmins);
+    } catch (error) {
+      handleError(res, error);
+    }
+  });
+  
   adminRouter.post("/admins", validateRequest(insertAdminUserSchema), async (req, res) => {
     try {
       const admin = await storage.createAdminUser(req.body);
