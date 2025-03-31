@@ -52,6 +52,15 @@ const securitySettingsSchema = z.object({
   path: ["confirmPassword"],
 });
 
+// Schema for recovery passphrase
+const passphraseSettingsSchema = z.object({
+  passphrase: z.string().min(6, { message: "Recovery passphrase must be at least 6 characters" }),
+  confirmPassphrase: z.string().min(1, { message: "Please confirm your passphrase" }),
+}).refine((data) => data.passphrase === data.confirmPassphrase, {
+  message: "Passphrases don't match",
+  path: ["confirmPassphrase"],
+});
+
 const Settings: React.FC = () => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -59,6 +68,7 @@ const Settings: React.FC = () => {
   const [isSavingTelegram, setIsSavingTelegram] = useState(false);
   const [isSavingWoocommerce, setIsSavingWoocommerce] = useState(false);
   const [isSavingPassword, setIsSavingPassword] = useState(false);
+  const [isSavingPassphrase, setIsSavingPassphrase] = useState(false);
 
   // Forms
   const telegramForm = useForm<z.infer<typeof telegramSettingsSchema>>({
@@ -83,6 +93,14 @@ const Settings: React.FC = () => {
       currentPassword: "",
       newPassword: "",
       confirmPassword: "",
+    },
+  });
+  
+  const passphraseForm = useForm<z.infer<typeof passphraseSettingsSchema>>({
+    resolver: zodResolver(passphraseSettingsSchema),
+    defaultValues: {
+      passphrase: "",
+      confirmPassphrase: "",
     },
   });
 
@@ -136,19 +154,61 @@ const Settings: React.FC = () => {
   const onSaveSecuritySettings = (data: z.infer<typeof securitySettingsSchema>) => {
     setIsSavingPassword(true);
     
-    // Simulate API call
-    setTimeout(() => {
-      setIsSavingPassword(false);
-      toast({
-        title: "Password Updated",
-        description: "Your password has been changed successfully.",
+    // Make API call to change password
+    apiRequest("POST", "/api/change-password", {
+      currentPassword: data.currentPassword,
+      newPassword: data.newPassword,
+    })
+      .then(() => {
+        toast({
+          title: "Password Updated",
+          description: "Your password has been changed successfully.",
+        });
+        securityForm.reset({
+          currentPassword: "",
+          newPassword: "",
+          confirmPassword: "",
+        });
+      })
+      .catch((error) => {
+        toast({
+          title: "Failed to update password",
+          description: error.message || "Please check your current password and try again",
+          variant: "destructive",
+        });
+      })
+      .finally(() => {
+        setIsSavingPassword(false);
       });
-      securityForm.reset({
-        currentPassword: "",
-        newPassword: "",
-        confirmPassword: "",
+  };
+  
+  const onSavePassphraseSettings = (data: z.infer<typeof passphraseSettingsSchema>) => {
+    setIsSavingPassphrase(true);
+    
+    // Make API call to update passphrase
+    apiRequest("POST", "/api/update-passphrase", {
+      passphrase: data.passphrase,
+    })
+      .then(() => {
+        toast({
+          title: "Recovery Passphrase Updated",
+          description: "Your recovery passphrase has been set successfully. Keep it in a safe place.",
+        });
+        passphraseForm.reset({
+          passphrase: "",
+          confirmPassphrase: "",
+        });
+      })
+      .catch((error) => {
+        toast({
+          title: "Failed to update passphrase",
+          description: error.message || "An error occurred while setting your recovery passphrase",
+          variant: "destructive",
+        });
+      })
+      .finally(() => {
+        setIsSavingPassphrase(false);
       });
-    }, 1000);
   };
 
   return (
@@ -293,66 +353,117 @@ const Settings: React.FC = () => {
 
         {/* Security Settings */}
         <TabsContent value="security">
-          <Card>
-            <CardHeader>
-              <CardTitle>Security Settings</CardTitle>
-              <CardDescription>
-                Update your password and manage security settings.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Form {...securityForm}>
-                <form onSubmit={securityForm.handleSubmit(onSaveSecuritySettings)} className="space-y-4">
-                  <FormField
-                    control={securityForm.control}
-                    name="currentPassword"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Current Password</FormLabel>
-                        <FormControl>
-                          <Input type="password" placeholder="Your current password" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <Separator className="my-4" />
-                  <FormField
-                    control={securityForm.control}
-                    name="newPassword"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>New Password</FormLabel>
-                        <FormControl>
-                          <Input type="password" placeholder="Your new password" {...field} />
-                        </FormControl>
-                        <FormDescription>
-                          Password must be at least 8 characters long.
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={securityForm.control}
-                    name="confirmPassword"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Confirm New Password</FormLabel>
-                        <FormControl>
-                          <Input type="password" placeholder="Confirm your new password" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <Button type="submit" disabled={isSavingPassword}>
-                    {isSavingPassword ? "Updating..." : "Update Password"}
-                  </Button>
-                </form>
-              </Form>
-            </CardContent>
-          </Card>
+          <div className="space-y-6">
+            {/* Password Change Card */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Password Settings</CardTitle>
+                <CardDescription>
+                  Update your account password.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Form {...securityForm}>
+                  <form onSubmit={securityForm.handleSubmit(onSaveSecuritySettings)} className="space-y-4">
+                    <FormField
+                      control={securityForm.control}
+                      name="currentPassword"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Current Password</FormLabel>
+                          <FormControl>
+                            <Input type="password" placeholder="Your current password" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <Separator className="my-4" />
+                    <FormField
+                      control={securityForm.control}
+                      name="newPassword"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>New Password</FormLabel>
+                          <FormControl>
+                            <Input type="password" placeholder="Your new password" {...field} />
+                          </FormControl>
+                          <FormDescription>
+                            Password must be at least 8 characters long.
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={securityForm.control}
+                      name="confirmPassword"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Confirm New Password</FormLabel>
+                          <FormControl>
+                            <Input type="password" placeholder="Confirm your new password" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <Button type="submit" disabled={isSavingPassword}>
+                      {isSavingPassword ? "Updating..." : "Update Password"}
+                    </Button>
+                  </form>
+                </Form>
+              </CardContent>
+            </Card>
+            
+            {/* Recovery Passphrase Card */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Recovery Passphrase</CardTitle>
+                <CardDescription>
+                  Set a recovery passphrase to reset your password if you forget it. Keep this passphrase in a secure place.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Form {...passphraseForm}>
+                  <form onSubmit={passphraseForm.handleSubmit(onSavePassphraseSettings)} className="space-y-4">
+                    <FormField
+                      control={passphraseForm.control}
+                      name="passphrase"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Recovery Passphrase</FormLabel>
+                          <FormControl>
+                            <Input type="password" placeholder="Enter a memorable passphrase" {...field} />
+                          </FormControl>
+                          <FormDescription>
+                            Choose a memorable but secure passphrase that's at least 6 characters.
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={passphraseForm.control}
+                      name="confirmPassphrase"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Confirm Passphrase</FormLabel>
+                          <FormControl>
+                            <Input type="password" placeholder="Confirm your passphrase" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <Button type="submit" disabled={isSavingPassphrase}>
+                      {isSavingPassphrase ? "Setting..." : "Set Recovery Passphrase"}
+                    </Button>
+                  </form>
+                </Form>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
     </Layout>

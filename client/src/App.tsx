@@ -9,11 +9,13 @@ import Dashboard from "@/pages/dashboard";
 import Users from "@/pages/users";
 import Courses from "@/pages/courses";
 import Settings from "@/pages/settings";
+import ResetPassword from "@/pages/reset-password";
 
 function Router() {
   return (
     <Switch>
       <Route path="/login" component={Login} />
+      <Route path="/reset-password" component={ResetPassword} />
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/users" component={Users} />
       <Route path="/courses" component={Courses} />

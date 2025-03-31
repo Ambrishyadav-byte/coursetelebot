@@ -2,6 +2,7 @@ import {
   users, 
   adminUsers, 
   courses, 
+  courseSubcontents,
   activities,
   type User, 
   type InsertUser, 
@@ -9,6 +10,8 @@ import {
   type InsertAdminUser, 
   type Course, 
   type InsertCourse,
+  type CourseSubcontent,
+  type InsertCourseSubcontent,
   type Activity,
   type InsertActivity
 } from "@shared/schema";
@@ -31,7 +34,11 @@ export interface IStorage {
   // Admin user methods
   getAdminUserByUsername(username: string): Promise<AdminUser | undefined>;
   validateAdminPassword(username: string, password: string): Promise<AdminUser | undefined>;
+  validateAdminPassphrase(username: string, passphrase: string): Promise<AdminUser | undefined>;
   createAdminUser(admin: InsertAdminUser): Promise<AdminUser>;
+  changeAdminPassword(username: string, currentPassword: string, newPassword: string): Promise<AdminUser | undefined>;
+  resetAdminPassword(username: string, passphrase: string, newPassword: string): Promise<AdminUser | undefined>;
+  updateAdminPassphrase(id: number, passphrase: string): Promise<AdminUser | undefined>;
   
   // Course methods
   getAllCourses(): Promise<Course[]>;
@@ -40,6 +47,13 @@ export interface IStorage {
   createCourse(course: InsertCourse): Promise<Course>;
   updateCourse(id: number, data: Partial<InsertCourse>): Promise<Course | undefined>;
   deleteCourse(id: number): Promise<boolean>;
+  
+  // Course Subcontent methods
+  getCourseSubcontents(courseId: number): Promise<CourseSubcontent[]>;
+  getCourseSubcontent(id: number): Promise<CourseSubcontent | undefined>;
+  createCourseSubcontent(subcontent: InsertCourseSubcontent): Promise<CourseSubcontent>;
+  updateCourseSubcontent(id: number, data: Partial<InsertCourseSubcontent>): Promise<CourseSubcontent | undefined>;
+  deleteCourseSubcontent(id: number): Promise<boolean>;
   
   // Activity methods
   getRecentActivities(limit: number): Promise<Activity[]>;
@@ -110,13 +124,72 @@ export class DatabaseStorage implements IStorage {
     return isValid ? admin : undefined;
   }
 
+  async validateAdminPassphrase(username: string, passphrase: string): Promise<AdminUser | undefined> {
+    const admin = await this.getAdminUserByUsername(username);
+    if (!admin) return undefined;
+    
+    // Check if admin has set a passphrase
+    if (!admin.passphrase) {
+      return undefined;
+    }
+    
+    // For security passphrase, we use direct comparison since it's not hashed
+    return admin.passphrase === passphrase ? admin : undefined;
+  }
+
   async createAdminUser(admin: Omit<InsertAdminUser, "password"> & { password: string }): Promise<AdminUser> {
     const hashedPassword = await bcrypt.hash(admin.password, 10);
+    
+    // Generate a random passphrase if not provided
+    const passphrase = admin.passphrase || Math.random().toString(36).substring(2, 12);
+    
     const [newAdmin] = await db
       .insert(adminUsers)
-      .values({ ...admin, password: hashedPassword })
+      .values({ ...admin, password: hashedPassword, passphrase })
       .returning();
     return newAdmin;
+  }
+  
+  async changeAdminPassword(username: string, currentPassword: string, newPassword: string): Promise<AdminUser | undefined> {
+    // First validate the current password
+    const admin = await this.validateAdminPassword(username, currentPassword);
+    if (!admin) return undefined;
+    
+    // Hash the new password and update
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    const [updatedAdmin] = await db
+      .update(adminUsers)
+      .set({ password: hashedPassword })
+      .where(eq(adminUsers.id, admin.id))
+      .returning();
+    
+    return updatedAdmin;
+  }
+  
+  async resetAdminPassword(username: string, passphrase: string, newPassword: string): Promise<AdminUser | undefined> {
+    // Validate the passphrase
+    const admin = await this.validateAdminPassphrase(username, passphrase);
+    if (!admin) return undefined;
+    
+    // Hash the new password and update
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    const [updatedAdmin] = await db
+      .update(adminUsers)
+      .set({ password: hashedPassword })
+      .where(eq(adminUsers.id, admin.id))
+      .returning();
+    
+    return updatedAdmin;
+  }
+  
+  async updateAdminPassphrase(id: number, passphrase: string): Promise<AdminUser | undefined> {
+    const [updatedAdmin] = await db
+      .update(adminUsers)
+      .set({ passphrase })
+      .where(eq(adminUsers.id, id))
+      .returning();
+    
+    return updatedAdmin;
   }
 
   // Course methods
@@ -162,6 +235,48 @@ export class DatabaseStorage implements IStorage {
       .delete(courses)
       .where(eq(courses.id, id))
       .returning({ id: courses.id });
+    return result.length > 0;
+  }
+
+  // Course Subcontent methods
+  async getCourseSubcontents(courseId: number): Promise<CourseSubcontent[]> {
+    return db
+      .select()
+      .from(courseSubcontents)
+      .where(eq(courseSubcontents.courseId, courseId))
+      .orderBy(courseSubcontents.orderIndex);
+  }
+
+  async getCourseSubcontent(id: number): Promise<CourseSubcontent | undefined> {
+    const [subcontent] = await db
+      .select()
+      .from(courseSubcontents)
+      .where(eq(courseSubcontents.id, id));
+    return subcontent;
+  }
+
+  async createCourseSubcontent(subcontent: InsertCourseSubcontent): Promise<CourseSubcontent> {
+    const [newSubcontent] = await db
+      .insert(courseSubcontents)
+      .values(subcontent)
+      .returning();
+    return newSubcontent;
+  }
+
+  async updateCourseSubcontent(id: number, data: Partial<InsertCourseSubcontent>): Promise<CourseSubcontent | undefined> {
+    const [updatedSubcontent] = await db
+      .update(courseSubcontents)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(courseSubcontents.id, id))
+      .returning();
+    return updatedSubcontent;
+  }
+
+  async deleteCourseSubcontent(id: number): Promise<boolean> {
+    const result = await db
+      .delete(courseSubcontents)
+      .where(eq(courseSubcontents.id, id))
+      .returning({ id: courseSubcontents.id });
     return result.length > 0;
   }
 

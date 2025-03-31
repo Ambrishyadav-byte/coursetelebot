@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useLocation } from 'wouter';
+import { useLocation, Link } from 'wouter';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { loginSchema, LoginCredentials } from '@shared/schema';
@@ -93,11 +93,16 @@ const Login: React.FC = () => {
                 )}
               />
               
-              <div className="flex items-center">
-                <Checkbox id="remember-me" />
-                <label htmlFor="remember-me" className="ml-2 block text-sm text-muted-foreground">
-                  Remember me
-                </label>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <Checkbox id="remember-me" />
+                  <label htmlFor="remember-me" className="ml-2 block text-sm text-muted-foreground">
+                    Remember me
+                  </label>
+                </div>
+                <Link href="/reset-password" className="text-sm text-primary hover:underline">
+                  Forgot password?
+                </Link>
               </div>
               
               <Button 
