@@ -5,6 +5,7 @@ import {
   courseSubcontents,
   activities,
   apiConfigurations,
+  notifications,
   type User, 
   type InsertUser, 
   type AdminUser, 
@@ -16,7 +17,9 @@ import {
   type Activity,
   type InsertActivity,
   type ApiConfiguration,
-  type InsertApiConfiguration
+  type InsertApiConfiguration,
+  type Notification,
+  type InsertNotification
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, or, sql } from "drizzle-orm";
@@ -70,6 +73,12 @@ export interface IStorage {
   createApiConfiguration(config: InsertApiConfiguration): Promise<ApiConfiguration>;
   updateApiConfiguration(id: number, data: Partial<InsertApiConfiguration>): Promise<ApiConfiguration | undefined>;
   deleteApiConfiguration(id: number): Promise<boolean>;
+  
+  // Notification methods
+  getAllNotifications(): Promise<Notification[]>;
+  getNotification(id: number): Promise<Notification | undefined>;
+  createNotification(notification: InsertNotification): Promise<Notification>;
+  getUserNotifications(userId: number): Promise<Notification[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -357,6 +366,40 @@ export class DatabaseStorage implements IStorage {
       .where(eq(apiConfigurations.id, id))
       .returning({ id: apiConfigurations.id });
     return result.length > 0;
+  }
+
+  // Notification methods
+  async getAllNotifications(): Promise<Notification[]> {
+    return db.select().from(notifications).orderBy(desc(notifications.sentAt));
+  }
+
+  async getNotification(id: number): Promise<Notification | undefined> {
+    const [notification] = await db
+      .select()
+      .from(notifications)
+      .where(eq(notifications.id, id));
+    return notification;
+  }
+
+  async createNotification(notification: InsertNotification): Promise<Notification> {
+    const [newNotification] = await db
+      .insert(notifications)
+      .values(notification)
+      .returning();
+    return newNotification;
+  }
+
+  async getUserNotifications(userId: number): Promise<Notification[]> {
+    return db
+      .select()
+      .from(notifications)
+      .where(
+        or(
+          eq(notifications.recipientType, "all"),
+          sql`${userId}::int = ANY(CAST(${notifications.recipientIds} AS int[]))`
+        )
+      )
+      .orderBy(desc(notifications.sentAt));
   }
 }
 

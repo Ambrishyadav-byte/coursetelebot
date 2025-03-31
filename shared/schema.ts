@@ -98,6 +98,24 @@ export const insertApiConfigSchema = createInsertSchema(apiConfigurations).omit(
   lastUpdated: true,
 });
 
+// Notifications table
+export const notifications = pgTable("notifications", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  message: text("message").notNull(),
+  recipientType: text("recipient_type").notNull(), // "all" or "selected"
+  recipientIds: text("recipient_ids").notNull().default('[]'), // JSON array as text
+  sentBy: integer("sent_by").references(() => adminUsers.id).notNull(),
+  sentAt: timestamp("sent_at").defaultNow().notNull(),
+  status: text("status").default("sent").notNull(), // "pending", "sent", "failed"
+  metadata: jsonb("metadata").default({}),
+});
+
+export const insertNotificationSchema = createInsertSchema(notifications).omit({
+  id: true,
+  sentAt: true,
+});
+
 // Type definitions
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -116,6 +134,9 @@ export type InsertActivity = z.infer<typeof insertActivitySchema>;
 
 export type ApiConfiguration = typeof apiConfigurations.$inferSelect;
 export type InsertApiConfiguration = z.infer<typeof insertApiConfigSchema>;
+
+export type Notification = typeof notifications.$inferSelect;
+export type InsertNotification = z.infer<typeof insertNotificationSchema>;
 
 // Login schema
 export const loginSchema = z.object({
@@ -172,3 +193,15 @@ export const telegramConfigSchema = z.object({
 });
 
 export type TelegramConfig = z.infer<typeof telegramConfigSchema>;
+
+// Notification schema for sending notifications
+export const sendNotificationSchema = z.object({
+  title: z.string().min(1, { message: "Title is required" }),
+  message: z.string().min(1, { message: "Message is required" }),
+  recipients: z.union([
+    z.literal("all"),
+    z.array(z.number())
+  ]),
+});
+
+export type SendNotificationRequest = z.infer<typeof sendNotificationSchema>;

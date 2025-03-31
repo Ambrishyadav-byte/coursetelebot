@@ -12,6 +12,7 @@ import Courses from "@/pages/courses";
 import CourseDetail from "@/pages/course-detail";
 import Settings from "@/pages/settings";
 import ResetPassword from "@/pages/reset-password";
+import Notifications from "./pages/notifications";
 
 function Router() {
   return (
@@ -23,6 +24,7 @@ function Router() {
       <Route path="/users/:id" component={UserDetail} />
       <Route path="/courses" component={Courses} />
       <Route path="/courses/:id" component={CourseDetail} />
+      <Route path="/notifications" component={Notifications} />
       <Route path="/settings" component={Settings} />
       <Route path="/" component={() => {
         // Redirect to dashboard as the default route

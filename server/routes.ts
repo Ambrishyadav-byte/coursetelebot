@@ -15,6 +15,7 @@ import {
   insertCourseSubcontentSchema,
   wooCommerceConfigSchema,
   telegramConfigSchema,
+  sendNotificationSchema,
 } from "@shared/schema";
 import { authenticateJWT, login } from "./middlewares/auth";
 import { loginRateLimiter, apiRateLimiter } from "./middlewares/rateLimiter";
@@ -540,6 +541,81 @@ export async function registerRoutes(app: Express): Promise<Server> {
         email,
         message: result ? 'Order verified successfully' : 'Order verification failed'
       });
+    } catch (error) {
+      handleError(res, error);
+    }
+  });
+
+  // Notification routes
+  adminRouter.get("/notifications", async (req, res) => {
+    try {
+      const notifications = await storage.getAllNotifications();
+      res.json(notifications);
+    } catch (error) {
+      handleError(res, error);
+    }
+  });
+
+  adminRouter.get("/notifications/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      const notification = await storage.getNotification(id);
+      
+      if (!notification) {
+        return res.status(404).json({ message: "Notification not found" });
+      }
+      
+      res.json(notification);
+    } catch (error) {
+      handleError(res, error);
+    }
+  });
+
+  adminRouter.post("/notifications", validateRequest(sendNotificationSchema), async (req, res) => {
+    try {
+      const { title, message, recipients } = req.body;
+      const adminId = req.user!.id;
+      
+      // Prepare notification data based on recipient type
+      const recipientType = recipients === "all" ? "all" : "selected";
+      const recipientIds = recipients === "all" ? "[]" : JSON.stringify(recipients);
+      
+      // Create notification
+      const notification = await storage.createNotification({
+        title,
+        message,
+        recipientType,
+        recipientIds,
+        sentBy: adminId,
+        status: "sent"
+      });
+      
+      // Log activity
+      await storage.createActivity({
+        type: "notification",
+        description: `Admin sent notification "${title}" to ${
+          recipientType === "all" ? "all users" : `${recipients.length} users`
+        }`,
+        adminId
+      });
+      
+      res.status(201).json(notification);
+    } catch (error) {
+      handleError(res, error);
+    }
+  });
+  
+  // Public notification routes - for users to fetch their notifications
+  app.get("/api/user/:userId/notifications", async (req, res) => {
+    try {
+      const userId = parseInt(req.params.userId, 10);
+      
+      // In a production app, we would verify the user's identity here
+      // For now, we're retrieving notifications with no authentication
+      // Future enhancement: Add JWT verification for user endpoints
+      
+      const notifications = await storage.getUserNotifications(userId);
+      res.json(notifications);
     } catch (error) {
       handleError(res, error);
     }
