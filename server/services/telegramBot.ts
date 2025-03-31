@@ -131,6 +131,63 @@ export async function getBot(): Promise<TelegramBot> {
   return bot;
 }
 
+/**
+ * Send a notification to a specific user or all users
+ * @param notification Notification object to send
+ */
+export async function sendNotificationToUsers(notification: {
+  title: string;
+  message: string;
+  recipientType: string;
+  recipientIds: string;
+}): Promise<void> {
+  try {
+    const bot = await getBot();
+    
+    // Format the message without Markdown to avoid parsing errors
+    const notificationText = `📣 *${notification.title}*\n\n${notification.message}`;
+    
+    if (notification.recipientType === 'all') {
+      // Send to all users
+      const allUsers = await storage.getAllUsers();
+      
+      for (const user of allUsers) {
+        if (user.telegramId && !user.isBanned) {
+          try {
+            await bot.sendMessage(user.telegramId, notificationText, { 
+              parse_mode: 'Markdown',
+              disable_web_page_preview: true 
+            });
+          } catch (error) {
+            logError(`Failed to send notification to user ${user.id}: ${error instanceof Error ? error.message : String(error)}`);
+          }
+        }
+      }
+    } else {
+      // Send to specific users
+      const recipientIds = JSON.parse(notification.recipientIds) as number[];
+      
+      for (const userId of recipientIds) {
+        const user = await storage.getUser(userId);
+        
+        if (user?.telegramId && !user.isBanned) {
+          try {
+            await bot.sendMessage(user.telegramId, notificationText, { 
+              parse_mode: 'Markdown',
+              disable_web_page_preview: true 
+            });
+          } catch (error) {
+            logError(`Failed to send notification to user ${userId}: ${error instanceof Error ? error.message : String(error)}`);
+          }
+        }
+      }
+    }
+  } catch (error) {
+    logError(`Error sending notifications: ${error instanceof Error ? error.message : String(error)}`);
+    throw error;
+  }
+}
+
 // User state management
 interface UserState {
   step: 'START' | 'EMAIL' | 'ORDER_ID';

@@ -599,6 +599,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         adminId
       });
       
+      // Send notification to users via Telegram
+      try {
+        const { sendNotificationToUsers } = await import('./services/telegramBot');
+        sendNotificationToUsers({
+          title,
+          message,
+          recipientType,
+          recipientIds
+        }).catch(err => {
+          logError(`Error sending telegram notification: ${err.message}`);
+        });
+      } catch (err) {
+        logError(`Failed to import or call sendNotificationToUsers: ${err instanceof Error ? err.message : String(err)}`);
+      }
+      
       res.status(201).json(notification);
     } catch (error) {
       handleError(res, error);
