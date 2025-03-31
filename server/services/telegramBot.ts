@@ -4,11 +4,51 @@ import { verifyOrderPayment } from './woocommerce';
 import { logError, logInfo, logUserEvent } from '../utils/logger';
 import { sanitizeString, isValidEmail, isValidOrderId } from '../utils/validation';
 import { telegramRateLimit } from '../middlewares/rateLimiter';
-import { getTelegramConfig } from './apiConfigManager';
+import { getTelegramConfig, initializeApiConfigurations } from './apiConfigManager';
 
 // Create a function to initialize and get the Telegram bot
 let botInstance: TelegramBot | null = null;
+let isInitializing = false;
 
+/**
+ * Initialize the Telegram bot with configuration from database
+ * This should be called at application startup
+ */
+export async function bootstrapTelegramBot(): Promise<void> {
+  if (isInitializing) {
+    logInfo("Telegram bot initialization already in progress");
+    return;
+  }
+  
+  isInitializing = true;
+  
+  try {
+    // First ensure API configurations are initialized in the database
+    await initializeApiConfigurations();
+    
+    // Then initialize the bot
+    const bot = await initTelegramBot();
+    
+    if (!bot) {
+      logError("Failed to initialize Telegram bot during bootstrap");
+    } else {
+      logInfo("Telegram bot service bootstrapped successfully");
+    }
+  } catch (error) {
+    if (error instanceof Error) {
+      logError(`Error bootstrapping Telegram bot: ${error.message}`);
+    } else {
+      logError(`Unknown error bootstrapping Telegram bot`);
+    }
+  } finally {
+    isInitializing = false;
+  }
+}
+
+/**
+ * Initialize the Telegram bot instance
+ * This handles the actual bot creation and event handler registration
+ */
 export async function initTelegramBot(): Promise<TelegramBot | null> {
   // If we already have a bot instance, return it
   if (botInstance) {
@@ -16,6 +56,16 @@ export async function initTelegramBot(): Promise<TelegramBot | null> {
   }
 
   try {
+    // Stop any previous polling
+    if (botInstance) {
+      try {
+        await botInstance.stopPolling();
+      } catch (err) {
+        // Ignore errors when stopping polling
+      }
+      botInstance = null;
+    }
+    
     // Get Telegram configuration from database
     const config = await getTelegramConfig();
     
@@ -35,6 +85,11 @@ export async function initTelegramBot(): Promise<TelegramBot | null> {
       logInfo("Telegram bot initialized from environment variables");
     } else {
       // Create bot with token from database
+      if (!config.credentials.botToken) {
+        logError("Bot token is empty in database configuration");
+        return null;
+      }
+      
       botInstance = new TelegramBot(config.credentials.botToken, { polling: true });
       logInfo("Telegram bot initialized from database configuration");
     }
@@ -50,17 +105,6 @@ export async function initTelegramBot(): Promise<TelegramBot | null> {
     return null;
   }
 }
-
-// Initialize the bot at startup
-initTelegramBot().then(bot => {
-  if (!bot) {
-    logError("Failed to initialize Telegram bot");
-  } else {
-    logInfo("Telegram bot service started successfully");
-  }
-}).catch(error => {
-  logError(`Error during Telegram bot initialization: ${error}`);
-});
 
 // Export the function to get the bot instance
 export async function getBot(): Promise<TelegramBot> {
@@ -474,5 +518,4 @@ async function handleBotError(chatId: number, error: unknown) {
   }
 }
 
-// Log startup
-console.log('Telegram bot service started');
+}

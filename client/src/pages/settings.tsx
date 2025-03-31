@@ -122,51 +122,87 @@ const Settings: React.FC = () => {
     },
   });
 
-  // Load existing settings (in a real application, this would fetch from the server)
+  // Fetch API configurations from the server
+  const { data: apiConfigs = [], isLoading: isLoadingApiConfigs } = useQuery({
+    queryKey: ['/api/api-configs'],
+    queryFn: getQueryFn<any[]>({ on401: 'throw' })
+  });
+
+  // Load existing API settings from the server
   useEffect(() => {
-    // Here we'd typically fetch settings from the server
-    // For now, we'll just assume environment variables are used
-    
-    const loadSettings = async () => {
-      try {
-        // In a real application, you would fetch these from your API
+    if (!isLoadingApiConfigs && apiConfigs.length > 0) {
+      // Find Telegram config
+      const telegramConfig = apiConfigs.find(config => config.name === 'telegram');
+      if (telegramConfig) {
+        // Use masked value for security (actual value only sent when updating)
         telegramForm.setValue('botToken', '•••••••••••••••••••••••••••••••');
-        woocommerceForm.setValue('apiUrl', 'https://your-store.com');
+      }
+
+      // Find WooCommerce config
+      const woocommerceConfig = apiConfigs.find(config => config.name === 'woocommerce');
+      if (woocommerceConfig) {
+        woocommerceForm.setValue('apiUrl', woocommerceConfig.url || 'https://lastbreakup.com/');
+        // Use masked values for security (actual values only sent when updating)
         woocommerceForm.setValue('consumerKey', '•••••••••••••••••••••••••');
         woocommerceForm.setValue('consumerSecret', '•••••••••••••••••••••••••');
-      } catch (error) {
-        console.error('Failed to load settings', error);
       }
-    };
+    }
+  }, [apiConfigs, isLoadingApiConfigs, telegramForm, woocommerceForm]);
 
-    loadSettings();
-  }, [telegramForm, woocommerceForm]);
-
-  // Submit handlers - these would typically save to your API
+  // Submit handlers for API configurations
   const onSaveTelegramSettings = (data: z.infer<typeof telegramSettingsSchema>) => {
     setIsSavingTelegram(true);
     
-    // Simulate API call
-    setTimeout(() => {
-      setIsSavingTelegram(false);
-      toast({
-        title: "Settings Saved",
-        description: "Telegram bot settings have been updated.",
+    // Call API to update Telegram bot token
+    apiRequest("PUT", "/api/api-configs/telegram", {
+      botToken: data.botToken,
+    })
+      .then((response: any) => {
+        toast({
+          title: "Settings Saved",
+          description: response?.message || "Telegram bot settings have been updated.",
+        });
+        // Refresh API configs list
+        queryClient.invalidateQueries({ queryKey: ['/api/api-configs'] });
+      })
+      .catch((error) => {
+        toast({
+          title: "Failed to update Telegram settings",
+          description: error.message || "An error occurred while updating Telegram settings",
+          variant: "destructive",
+        });
+      })
+      .finally(() => {
+        setIsSavingTelegram(false);
       });
-    }, 1000);
   };
 
   const onSaveWoocommerceSettings = (data: z.infer<typeof woocommerceSettingsSchema>) => {
     setIsSavingWoocommerce(true);
     
-    // Simulate API call
-    setTimeout(() => {
-      setIsSavingWoocommerce(false);
-      toast({
-        title: "Settings Saved",
-        description: "WooCommerce API settings have been updated.",
+    // Call API to update WooCommerce credentials
+    apiRequest("PUT", "/api/api-configs/woocommerce", {
+      consumerKey: data.consumerKey,
+      consumerSecret: data.consumerSecret,
+    })
+      .then((response: any) => {
+        toast({
+          title: "Settings Saved",
+          description: response?.message || "WooCommerce API settings have been updated.",
+        });
+        // Refresh API configs list
+        queryClient.invalidateQueries({ queryKey: ['/api/api-configs'] });
+      })
+      .catch((error) => {
+        toast({
+          title: "Failed to update WooCommerce settings",
+          description: error.message || "An error occurred while updating WooCommerce settings",
+          variant: "destructive",
+        });
+      })
+      .finally(() => {
+        setIsSavingWoocommerce(false);
       });
-    }, 1000);
   };
 
   const onSaveSecuritySettings = (data: z.infer<typeof securitySettingsSchema>) => {

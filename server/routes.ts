@@ -2,6 +2,7 @@ import express, { type Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { getBot } from "./services/telegramBot";
+import { bootstrapTelegramBot } from "./services/telegramBot";
 import {
   insertUserSchema,
   insertCourseSchema,
@@ -11,11 +12,14 @@ import {
   passwordResetRequestSchema,
   passwordResetSchema,
   insertCourseSubcontentSchema,
+  wooCommerceConfigSchema,
+  telegramConfigSchema,
 } from "@shared/schema";
 import { authenticateJWT, login } from "./middlewares/auth";
 import { loginRateLimiter, apiRateLimiter } from "./middlewares/rateLimiter";
 import { validateRequest } from "./utils/validation";
 import { logAdminEvent, logError } from "./utils/logger";
+import { API_CONFIGS } from "./services/apiConfigManager";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
@@ -303,7 +307,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         passphrase: undefined,
         // Add last activity timestamp - using created_at for now
         // In a production app, this would come from a sessions table or activity log
-        lastActivity: admin.updatedAt || admin.createdAt
+        lastActivity: admin.createdAt
       }));
       res.json(safeAdmins);
     } catch (error) {
@@ -369,6 +373,118 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const limit = parseInt(req.query.limit as string, 10) || 10;
       const activities = await storage.getRecentActivities(limit);
       res.json(activities);
+    } catch (error) {
+      handleError(res, error);
+    }
+  });
+  
+  // API Configuration routes
+  adminRouter.get("/api-configs", async (req, res) => {
+    try {
+      const configs = await storage.getAllApiConfigurations();
+      // Mask sensitive credentials
+      const safeConfigs = configs.map(config => {
+        // Create a safe version with masked credentials
+        const maskedConfig = {
+          ...config,
+          credentials: {} as any
+        };
+        
+        // Mask Telegram credentials
+        if (config.name === API_CONFIGS.TELEGRAM) {
+          maskedConfig.credentials = {
+            botToken: '•••••••••••••••••••••••••••••••'
+          };
+        } 
+        // Mask WooCommerce credentials
+        else if (config.name === API_CONFIGS.WOOCOMMERCE) {
+          maskedConfig.credentials = {
+            consumerKey: '•••••••••••••••••••••••••',
+            consumerSecret: '•••••••••••••••••••••••••'
+          };
+        } 
+        // For any other config types
+        else if (config.credentials) {
+          maskedConfig.credentials = JSON.parse(JSON.stringify(config.credentials));
+        }
+        
+        return maskedConfig;
+      });
+      res.json(safeConfigs);
+    } catch (error) {
+      handleError(res, error);
+    }
+  });
+  
+  // API Config - Telegram Bot update
+  adminRouter.put("/api-configs/telegram", validateRequest(telegramConfigSchema), async (req, res) => {
+    try {
+      const { botToken } = req.body;
+      
+      // Get existing config
+      const config = await storage.getApiConfigurationByName(API_CONFIGS.TELEGRAM);
+      
+      if (!config) {
+        return res.status(404).json({ message: "Telegram API configuration not found" });
+      }
+      
+      // Update configuration
+      const updatedConfig = await storage.updateApiConfiguration(config.id, {
+        credentials: { botToken },
+        updatedBy: req.user!.id
+      });
+      
+      if (!updatedConfig) {
+        return res.status(500).json({ message: "Failed to update Telegram API configuration" });
+      }
+      
+      // Restart the Telegram bot with new configuration
+      try {
+        await bootstrapTelegramBot();
+        logAdminEvent(`Admin updated Telegram Bot configuration`, req.user?.id);
+        res.json({ 
+          success: true, 
+          message: "Telegram Bot configuration updated and bot restarted" 
+        });
+      } catch (error) {
+        res.status(200).json({ 
+          success: true, 
+          message: "Telegram Bot configuration updated but failed to restart the bot",
+          error: error instanceof Error ? error.message : "Unknown error"
+        });
+      }
+    } catch (error) {
+      handleError(res, error);
+    }
+  });
+  
+  // API Config - WooCommerce update
+  adminRouter.put("/api-configs/woocommerce", validateRequest(wooCommerceConfigSchema), async (req, res) => {
+    try {
+      const { consumerKey, consumerSecret } = req.body;
+      
+      // Get existing config
+      const config = await storage.getApiConfigurationByName(API_CONFIGS.WOOCOMMERCE);
+      
+      if (!config) {
+        return res.status(404).json({ message: "WooCommerce API configuration not found" });
+      }
+      
+      // Update configuration
+      const updatedConfig = await storage.updateApiConfiguration(config.id, {
+        credentials: { consumerKey, consumerSecret },
+        updatedBy: req.user!.id
+      });
+      
+      if (!updatedConfig) {
+        return res.status(500).json({ message: "Failed to update WooCommerce API configuration" });
+      }
+      
+      logAdminEvent(`Admin updated WooCommerce API configuration`, req.user?.id);
+      res.json({ 
+        success: true, 
+        message: "WooCommerce API configuration updated successfully" 
+      });
     } catch (error) {
       handleError(res, error);
     }

@@ -1,6 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { bootstrapTelegramBot } from "./services/telegramBot";
 
 const app = express();
 app.use(express.json());
@@ -66,5 +67,10 @@ app.use((req, res, next) => {
     reusePort: true,
   }, () => {
     log(`serving on port ${port}`);
+    
+    // Initialize Telegram bot after server has started
+    bootstrapTelegramBot().catch(err => {
+      log(`Failed to bootstrap Telegram bot: ${err.message}`);
+    });
   });
 })();
