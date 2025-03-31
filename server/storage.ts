@@ -61,6 +61,14 @@ export interface IStorage {
   // Activity methods
   getRecentActivities(limit: number): Promise<Activity[]>;
   createActivity(activity: InsertActivity): Promise<Activity>;
+  
+  // API Configuration methods
+  getAllApiConfigurations(): Promise<ApiConfiguration[]>;
+  getActiveApiConfigurations(): Promise<ApiConfiguration[]>;
+  getApiConfigurationByName(name: string): Promise<ApiConfiguration | undefined>;
+  createApiConfiguration(config: InsertApiConfiguration): Promise<ApiConfiguration>;
+  updateApiConfiguration(id: number, data: Partial<InsertApiConfiguration>): Promise<ApiConfiguration | undefined>;
+  deleteApiConfiguration(id: number): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -298,6 +306,52 @@ export class DatabaseStorage implements IStorage {
       .values(activity)
       .returning();
     return newActivity;
+  }
+
+  // API Configuration methods
+  async getAllApiConfigurations(): Promise<ApiConfiguration[]> {
+    return db.select().from(apiConfigurations).orderBy(desc(apiConfigurations.lastUpdated));
+  }
+
+  async getActiveApiConfigurations(): Promise<ApiConfiguration[]> {
+    return db
+      .select()
+      .from(apiConfigurations)
+      .where(eq(apiConfigurations.isActive, true))
+      .orderBy(desc(apiConfigurations.lastUpdated));
+  }
+
+  async getApiConfigurationByName(name: string): Promise<ApiConfiguration | undefined> {
+    const [config] = await db
+      .select()
+      .from(apiConfigurations)
+      .where(eq(apiConfigurations.name, name));
+    return config;
+  }
+
+  async createApiConfiguration(config: InsertApiConfiguration): Promise<ApiConfiguration> {
+    const [newConfig] = await db
+      .insert(apiConfigurations)
+      .values(config)
+      .returning();
+    return newConfig;
+  }
+
+  async updateApiConfiguration(id: number, data: Partial<InsertApiConfiguration>): Promise<ApiConfiguration | undefined> {
+    const [updatedConfig] = await db
+      .update(apiConfigurations)
+      .set({ ...data, lastUpdated: new Date() })
+      .where(eq(apiConfigurations.id, id))
+      .returning();
+    return updatedConfig;
+  }
+
+  async deleteApiConfiguration(id: number): Promise<boolean> {
+    const result = await db
+      .delete(apiConfigurations)
+      .where(eq(apiConfigurations.id, id))
+      .returning({ id: apiConfigurations.id });
+    return result.length > 0;
   }
 }
 

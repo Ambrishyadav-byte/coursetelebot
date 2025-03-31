@@ -1,13 +1,30 @@
 import WooCommerceRestApi from '@woocommerce/woocommerce-rest-api';
 import { logError, logInfo } from '../utils/logger';
+import { getWooCommerceConfig } from './apiConfigManager';
 
-// Initialize WooCommerce API client
-const WooCommerce = new WooCommerceRestApi({
-  url: process.env.WOOCOMMERCE_URL || 'https://your-store.com',
-  consumerKey: process.env.WOOCOMMERCE_CONSUMER_KEY || '',
-  consumerSecret: process.env.WOOCOMMERCE_CONSUMER_SECRET || '',
-  version: 'wc/v3'
-});
+// Create a function to get a configured WooCommerce client
+async function getWooCommerceClient(): Promise<WooCommerceRestApi | null> {
+  try {
+    const config = await getWooCommerceConfig();
+    
+    if (!config) {
+      logError('Failed to get WooCommerce configuration from database');
+      return null;
+    }
+    
+    return new WooCommerceRestApi({
+      url: config.url,
+      consumerKey: config.credentials.consumerKey,
+      consumerSecret: config.credentials.consumerSecret,
+      version: 'wc/v3'
+    });
+  } catch (error) {
+    if (error instanceof Error) {
+      logError(`Error creating WooCommerce client: ${error.message}`);
+    }
+    return null;
+  }
+}
 
 // Based on the actual WooCommerce response structure
 interface OrderData {
@@ -80,7 +97,14 @@ interface OrderData {
 export async function getOrderById(orderId: string): Promise<OrderData | null> {
   try {
     logInfo(`Fetching WooCommerce order: ${orderId}`);
-    const response = await WooCommerce.get(`orders/${orderId}`);
+    
+    const wooCommerce = await getWooCommerceClient();
+    if (!wooCommerce) {
+      logError('WooCommerce client initialization failed');
+      return null;
+    }
+    
+    const response = await wooCommerce.get(`orders/${orderId}`);
     return response.data;
   } catch (error) {
     if (error instanceof Error) {
