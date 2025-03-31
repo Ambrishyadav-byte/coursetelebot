@@ -184,6 +184,7 @@ const Settings: React.FC = () => {
     apiRequest("PUT", "/api/api-configs/woocommerce", {
       consumerKey: data.consumerKey,
       consumerSecret: data.consumerSecret,
+      apiUrl: data.apiUrl,
     })
       .then((response: any) => {
         toast({

@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { getBot } from "./services/telegramBot";
 import { bootstrapTelegramBot } from "./services/telegramBot";
+import { verifyOrderPayment } from "./services/woocommerce";
 import {
   insertUserSchema,
   insertCourseSchema,
@@ -461,7 +462,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // API Config - WooCommerce update
   adminRouter.put("/api-configs/woocommerce", validateRequest(wooCommerceConfigSchema), async (req, res) => {
     try {
-      const { consumerKey, consumerSecret } = req.body;
+      const { consumerKey, consumerSecret, apiUrl } = req.body;
       
       // Get existing config
       const config = await storage.getApiConfigurationByName(API_CONFIGS.WOOCOMMERCE);
@@ -471,10 +472,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Update configuration
-      const updatedConfig = await storage.updateApiConfiguration(config.id, {
+      const updates: any = {
         credentials: { consumerKey, consumerSecret },
         updatedBy: req.user!.id
-      });
+      };
+      
+      // If API URL is provided, update it
+      if (apiUrl) {
+        updates.url = apiUrl;
+      }
+      
+      const updatedConfig = await storage.updateApiConfiguration(config.id, updates);
       
       if (!updatedConfig) {
         return res.status(500).json({ message: "Failed to update WooCommerce API configuration" });
@@ -513,6 +521,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Mount admin router to /api path
+  // Test order validation endpoint
+  adminRouter.get("/test-order-validation", async (req, res) => {
+    try {
+      const { orderId, email } = req.query;
+      
+      if (!orderId || !email) {
+        return res.status(400).json({ error: 'Missing orderId or email parameter' });
+      }
+      
+      const result = await verifyOrderPayment(orderId.toString(), email.toString());
+      
+      logAdminEvent(`Admin tested order validation for orderId: ${orderId}, email: ${email}, result: ${result ? 'SUCCESS' : 'FAILED'}`, req.user?.id);
+      
+      return res.status(200).json({ 
+        success: result,
+        orderId,
+        email,
+        message: result ? 'Order verified successfully' : 'Order verification failed'
+      });
+    } catch (error) {
+      handleError(res, error);
+    }
+  });
+
   app.use("/api", adminRouter);
 
   // Error handling helper

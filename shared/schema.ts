@@ -161,6 +161,7 @@ export type PasswordReset = z.infer<typeof passwordResetSchema>;
 export const wooCommerceConfigSchema = z.object({
   consumerKey: z.string().min(1, { message: "Consumer Key is required" }),
   consumerSecret: z.string().min(1, { message: "Consumer Secret is required" }),
+  apiUrl: z.string().url({ message: "Valid URL is required" }).optional(),
 });
 
 export type WooCommerceConfig = z.infer<typeof wooCommerceConfigSchema>;

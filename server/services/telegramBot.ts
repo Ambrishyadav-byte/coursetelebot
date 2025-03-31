@@ -6,6 +6,20 @@ import { sanitizeString, isValidEmail, isValidOrderId } from '../utils/validatio
 import { telegramRateLimit } from '../middlewares/rateLimiter';
 import { getTelegramConfig, initializeApiConfigurations } from './apiConfigManager';
 
+// Type guard for TelegramBot
+function isTelegramBot(bot: any): bot is TelegramBot {
+  return bot && 
+         typeof bot.stopPolling === 'function' && 
+         typeof bot.isPolling === 'function';
+}
+
+// Helper function to safely stop a bot
+async function stopBot(bot: any): Promise<void> {
+  if (isTelegramBot(bot) && bot.isPolling()) {
+    await bot.stopPolling();
+  }
+}
+
 // Create a function to initialize and get the Telegram bot
 let botInstance: TelegramBot | null = null;
 let isInitializing = false;
@@ -59,9 +73,11 @@ export async function initTelegramBot(): Promise<TelegramBot | null> {
     // Stop any previous polling
     if (botInstance) {
       try {
-        await botInstance.stopPolling();
+        // Safely stop the bot
+        await stopBot(botInstance);
       } catch (err) {
         // Ignore errors when stopping polling
+        logError(`Error stopping bot polling: ${err instanceof Error ? err.message : String(err)}`);
       }
       botInstance = null;
     }
@@ -304,13 +320,17 @@ bot.on('message', async (msg) => {
       
       if (user) {
         // Update existing user
-        user = await storage.updateUser(user.id, {
+        const updatedUser = await storage.updateUser(user.id, {
           isVerified: true,
           orderId: sanitizedOrderId,
           email: state.email // Update email in case it changed
         });
         
-        logUserEvent(`User updated and verified: ${user.email} with order ${sanitizedOrderId}`, user.id);
+        if (updatedUser) {
+          logUserEvent(`User updated and verified: ${updatedUser.email} with order ${sanitizedOrderId}`, updatedUser.id);
+        } else {
+          logError(`Failed to update user ${user.id} during verification`);
+        }
       } else {
         // Create new user
         user = await storage.createUser({

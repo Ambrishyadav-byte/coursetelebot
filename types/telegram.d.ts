@@ -97,6 +97,7 @@ declare module 'node-telegram-bot-api' {
     constructor(token: string, options?: TelegramBot.ConstructorOptions);
 
     stopPolling(): Promise<any>;
+    isPolling(): boolean;
     sendMessage(chatId: number | string, text: string, options?: TelegramBot.SendMessageOptions): Promise<TelegramBot.Message>;
     answerCallbackQuery(callbackQueryId: string, options?: TelegramBot.AnswerCallbackQueryOptions): Promise<boolean>;
     editMessageText(text: string, options?: TelegramBot.EditMessageTextOptions): Promise<TelegramBot.Message | boolean>;

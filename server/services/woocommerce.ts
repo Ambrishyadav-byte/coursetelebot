@@ -11,13 +11,33 @@ async function getWooCommerceClient(): Promise<WooCommerceRestApi | null> {
       logError('Failed to get WooCommerce configuration from database');
       return null;
     }
+
+    // Make sure we have all required credentials
+    if (!config.credentials.consumerKey || !config.credentials.consumerSecret) {
+      logError('WooCommerce API credentials are missing');
+      return null;
+    }
     
-    return new WooCommerceRestApi({
-      url: config.url,
+    // Validate URL with a proper protocol
+    let url = config.url;
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      url = 'https://' + url;
+    }
+    
+    // Remove trailing slash if present
+    if (url.endsWith('/')) {
+      url = url.slice(0, -1);
+    }
+
+    const client = new WooCommerceRestApi({
+      url,
       consumerKey: config.credentials.consumerKey,
       consumerSecret: config.credentials.consumerSecret,
       version: 'wc/v3'
     });
+    
+    logInfo(`WooCommerce client initialized with URL: ${url}`);
+    return client;
   } catch (error) {
     if (error instanceof Error) {
       logError(`Error creating WooCommerce client: ${error.message}`);
@@ -128,6 +148,14 @@ export function getOrderEmail(order: OrderData): string {
 // Verify if an order exists and is paid
 export async function verifyOrderPayment(orderId: string, email: string): Promise<boolean> {
   try {
+    // Basic validation
+    if (!orderId || !email) {
+      logError('Missing orderId or email for verification');
+      return false;
+    }
+    
+    logInfo(`Verifying order payment - Order ID: ${orderId}, Email: ${email}`);
+    
     const order = await getOrderById(orderId);
     
     if (!order) {
@@ -135,22 +163,34 @@ export async function verifyOrderPayment(orderId: string, email: string): Promis
       return false;
     }
     
+    logInfo(`Order found: ${orderId}, Status: ${order.status}, Order Email: ${order.billing.email}`);
+    
     // Verify order belongs to the correct customer
-    if (getOrderEmail(order).toLowerCase() !== email.toLowerCase()) {
-      logInfo(`Email mismatch for order ${orderId}`);
+    const orderEmail = getOrderEmail(order).toLowerCase();
+    const customerEmail = email.toLowerCase();
+    
+    if (orderEmail !== customerEmail) {
+      logInfo(`Email mismatch for order ${orderId}. Order email: ${orderEmail}, Customer provided: ${customerEmail}`);
       return false;
     }
     
     // Check if order is paid
     if (!isOrderPaid(order)) {
-      logInfo(`Order not paid: ${orderId}`);
+      logInfo(`Order not paid: ${orderId}, Status: ${order.status}`);
       return false;
     }
     
+    logInfo(`Order verification successful - Order ID: ${orderId}, Email: ${email}`);
     return true;
   } catch (error) {
     if (error instanceof Error) {
       logError(`Error verifying order payment: ${error.message}`);
+      // Log error details for debugging
+      if (error.stack) {
+        logError(`Stack trace: ${error.stack}`);
+      }
+    } else {
+      logError(`Unknown error verifying order payment: ${String(error)}`);
     }
     return false;
   }
