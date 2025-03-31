@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -81,6 +81,22 @@ export const insertActivitySchema = createInsertSchema(activities).omit({
   createdAt: true,
 });
 
+// API Configuration table
+export const apiConfigurations = pgTable("api_configurations", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  url: text("url").notNull(),
+  credentials: jsonb("credentials").notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
+  lastUpdated: timestamp("last_updated").defaultNow().notNull(),
+  updatedBy: integer("updated_by").references(() => adminUsers.id),
+});
+
+export const insertApiConfigSchema = createInsertSchema(apiConfigurations).omit({
+  id: true,
+  lastUpdated: true,
+});
+
 // Type definitions
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -96,6 +112,9 @@ export type InsertCourseSubcontent = z.infer<typeof insertCourseSubcontentSchema
 
 export type Activity = typeof activities.$inferSelect;
 export type InsertActivity = z.infer<typeof insertActivitySchema>;
+
+export type ApiConfiguration = typeof apiConfigurations.$inferSelect;
+export type InsertApiConfiguration = z.infer<typeof insertApiConfigSchema>;
 
 // Login schema
 export const loginSchema = z.object({
@@ -137,3 +156,17 @@ export const passwordResetSchema = z.object({
 });
 
 export type PasswordReset = z.infer<typeof passwordResetSchema>;
+
+// API Configuration schemas
+export const wooCommerceConfigSchema = z.object({
+  consumerKey: z.string().min(1, { message: "Consumer Key is required" }),
+  consumerSecret: z.string().min(1, { message: "Consumer Secret is required" }),
+});
+
+export type WooCommerceConfig = z.infer<typeof wooCommerceConfigSchema>;
+
+export const telegramConfigSchema = z.object({
+  botToken: z.string().min(1, { message: "Bot Token is required" }),
+});
+
+export type TelegramConfig = z.infer<typeof telegramConfigSchema>;

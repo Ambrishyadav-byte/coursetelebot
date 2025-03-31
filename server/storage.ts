@@ -4,6 +4,7 @@ import {
   courses, 
   courseSubcontents,
   activities,
+  apiConfigurations,
   type User, 
   type InsertUser, 
   type AdminUser, 
@@ -13,7 +14,9 @@ import {
   type CourseSubcontent,
   type InsertCourseSubcontent,
   type Activity,
-  type InsertActivity
+  type InsertActivity,
+  type ApiConfiguration,
+  type InsertApiConfiguration
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, or, sql } from "drizzle-orm";

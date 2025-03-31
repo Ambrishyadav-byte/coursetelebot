@@ -9,17 +9,70 @@ const WooCommerce = new WooCommerceRestApi({
   version: 'wc/v3'
 });
 
+// Based on the actual WooCommerce response structure
 interface OrderData {
   id: number;
+  parent_id: number;
   status: string;
+  currency: string;
+  version: string;
+  prices_include_tax: boolean;
+  date_created: string;
+  date_modified: string;
+  discount_total: string;
+  discount_tax: string;
+  shipping_total: string;
+  shipping_tax: string;
+  cart_tax: string;
+  total: string;
+  total_tax: string;
+  customer_id: number;
+  order_key: string;
   billing: {
-    email: string;
     first_name: string;
     last_name: string;
+    company: string;
+    address_1: string;
+    address_2: string;
+    city: string;
+    state: string;
+    postcode: string;
+    country: string;
+    email: string;
+    phone: string;
   };
+  shipping: {
+    first_name: string;
+    last_name: string;
+    company: string;
+    address_1: string;
+    address_2: string;
+    city: string;
+    state: string;
+    postcode: string;
+    country: string;
+    phone: string;
+  };
+  payment_method: string;
+  payment_method_title: string;
+  transaction_id: string;
+  customer_note: string;
   line_items: Array<{
-    product_id: number;
+    id: number;
     name: string;
+    product_id: number;
+    variation_id: number;
+    quantity: number;
+    tax_class: string;
+    subtotal: string;
+    subtotal_tax: string;
+    total: string;
+    total_tax: string;
+    taxes: any[];
+    meta_data: any[];
+    sku: string;
+    price: number;
+    parent_name: string | null;
   }>;
 }
 
