@@ -139,8 +139,8 @@ const CoursesTable: React.FC<CoursesTableProps> = ({ onEditCourse }) => {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-foreground">{course.title}</div>
                       <div className="text-sm text-muted-foreground">
-                        {course.description.length > 50
-                          ? `${course.description.substring(0, 50)}...`
+                        {course.description.length > 20
+                          ? `${course.description.substring(0, 20)}...`
                           : course.description}
                       </div>
                     </td>
