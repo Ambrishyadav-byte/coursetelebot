@@ -105,105 +105,107 @@ const CoursesTable: React.FC<CoursesTableProps> = ({ onEditCourse }) => {
   return (
     <>
       <div className="shadow overflow-hidden border border-border rounded-lg">
-        <table className="min-w-full divide-y divide-border">
-          <thead className="bg-muted">
-            <tr>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                Title
-              </th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                Status
-              </th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                Created
-              </th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                Last Updated
-              </th>
-              <th scope="col" className="relative px-6 py-3">
-                <span className="sr-only">Actions</span>
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-background divide-y divide-border">
-            {courses.length === 0 ? (
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-border">
+            <thead className="bg-muted">
               <tr>
-                <td colSpan={5} className="px-6 py-4 whitespace-nowrap text-center text-muted-foreground">
-                  No courses found
-                </td>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  Title
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  Status
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  Created
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  Last Updated
+                </th>
+                <th scope="col" className="relative px-6 py-3">
+                  <span className="sr-only">Actions</span>
+                </th>
               </tr>
-            ) : (
-              courses.map((course) => (
-                <tr key={course.id}>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-foreground">{course.title}</div>
-                    <div className="text-sm text-muted-foreground">
-                      {course.description.length > 50
-                        ? `${course.description.substring(0, 50)}...`
-                        : course.description}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {course.isActive ? (
-                      <Badge variant="success">Active</Badge>
-                    ) : (
-                      <Badge variant="warning">Inactive</Badge>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
-                    {course.createdAt
-                      ? formatDistanceToNow(new Date(course.createdAt), { addSuffix: true })
-                      : 'Unknown'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
-                    {course.updatedAt
-                      ? formatDistanceToNow(new Date(course.updatedAt), { addSuffix: true })
-                      : 'Unknown'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-primary mr-2"
-                      onClick={() => handleToggleActive(course)}
-                      disabled={toggleActiveMutation.isPending}
-                    >
-                      {course.isActive ? 'Deactivate' : 'Activate'}
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      asChild
-                      className="mr-2"
-                    >
-                      <Link href={`/courses/${course.id}`}>
-                        <ListVideo className="h-4 w-4 mr-1" />
-                        Manage Lessons
-                      </Link>
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="mr-1"
-                      onClick={() => onEditCourse(course)}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="text-destructive"
-                      onClick={() => handleDeleteCourse(course.id)}
-                      disabled={deleteMutation.isPending}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+            </thead>
+            <tbody className="bg-background divide-y divide-border">
+              {courses.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-6 py-4 whitespace-nowrap text-center text-muted-foreground">
+                    No courses found
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : (
+                courses.map((course) => (
+                  <tr key={course.id}>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium text-foreground">{course.title}</div>
+                      <div className="text-sm text-muted-foreground">
+                        {course.description.length > 50
+                          ? `${course.description.substring(0, 50)}...`
+                          : course.description}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {course.isActive ? (
+                        <Badge variant="success">Active</Badge>
+                      ) : (
+                        <Badge variant="warning">Inactive</Badge>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
+                      {course.createdAt
+                        ? formatDistanceToNow(new Date(course.createdAt), { addSuffix: true })
+                        : 'Unknown'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
+                      {course.updatedAt
+                        ? formatDistanceToNow(new Date(course.updatedAt), { addSuffix: true })
+                        : 'Unknown'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-primary mr-2"
+                        onClick={() => handleToggleActive(course)}
+                        disabled={toggleActiveMutation.isPending}
+                      >
+                        {course.isActive ? 'Deactivate' : 'Activate'}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        asChild
+                        className="mr-2"
+                      >
+                        <Link href={`/courses/${course.id}`}>
+                          <ListVideo className="h-4 w-4 mr-1" />
+                          Manage Lessons
+                        </Link>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="mr-1"
+                        onClick={() => onEditCourse(course)}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-destructive"
+                        onClick={() => handleDeleteCourse(course.id)}
+                        disabled={deleteMutation.isPending}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Delete Confirmation Dialog */}
