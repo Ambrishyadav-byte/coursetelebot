@@ -37,8 +37,10 @@ const Courses: React.FC = () => {
         </Button>
       </div>
       
-      <CoursesTable onEditCourse={handleEditCourse} />
-      
+      <div className="overflow-x-auto">
+        <CoursesTable onEditCourse={handleEditCourse} />
+      </div>
+
       <CourseDialog 
         open={isDialogOpen} 
         onOpenChange={handleDialogClose}
