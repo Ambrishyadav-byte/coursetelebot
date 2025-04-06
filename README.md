@@ -1,6 +1,6 @@
 # 🤖 Telegram Bot Admin Panel
 
-A powerful Telegram Bot Admin Panel built using Node.js and PostgreSQL. It allows you to manage users, broadcast messages, and interact with your audience from a web dashboard.
+A powerful Telegram Bot Admin Panel and Telegram Bot which verifies email and order ID via WooCommerce and checks if the user has completed payment. If payment is completed, the user will be authorized to access a course or your media. Built using Node.js and PostgreSQL. It allows you to manage users, broadcast messages, and interact with your audience from a web dashboard.
 
 ---
 
@@ -14,6 +14,7 @@ A powerful Telegram Bot Admin Panel built using Node.js and PostgreSQL. It allow
 - ✅ Secure, Token-Based Login  
 - ✅ PostgreSQL-Powered Backend  
 - ✅ Admin Dashboard UI (Ready to Use)
+- ✅ Telegram Bot Course Access via WooCommerce Order Verification
 
 ---
 
@@ -22,7 +23,7 @@ A powerful Telegram Bot Admin Panel built using Node.js and PostgreSQL. It allow
 - **Backend:** Node.js (v20.x)
 - **Database:** PostgreSQL (v16.x)
 - **Auth:** JWT (JSON Web Tokens)
-- **Frontend:** HTML/CSS + Templating (or integrated React/Next.js depending on your version)
+- **Frontend:** HTML/CSS + Templating
 - **ORM:** Prisma or Sequelize
 - **Scripts:** TypeScript-powered CLI admin creator
 
@@ -34,7 +35,7 @@ A powerful Telegram Bot Admin Panel built using Node.js and PostgreSQL. It allow
 
 ```bash
 git clone https://github.com/Ambrishyadav-byte/coursetelebot/
-cd telegram-bot-admin-panel
+cd coursetelebot
 ```
 
 ---
@@ -59,9 +60,6 @@ Create a database via terminal or PGAdmin:
 ```sql
 CREATE DATABASE telegram_bot_admin;
 ```
-```
-You can also use POSTGRES from vercel or any other service..
-```
 
 ---
 
@@ -76,8 +74,11 @@ touch .env
 Add the following content:
 
 ```env
-DATABASE_URL=postgresql://your_username:your_password@localhost:5432/telegram_bot_admin?
-JWT_SECRET=a_really_secure_random_secret_key
+TELEGRAM_BOT_TOKEN=BOTTOKEN
+WOOCOMMERCE_CONSUMER_KEY=CONSUMERKEY
+WOOCOMMERCE_CONSUMER_SECRET=CONSUMER_SECRET
+DATABASE_URL=POSTGRESURL?sslmode=require
+JWT_SECRET=SECRET
 PORT=5000
 ```
 
@@ -90,8 +91,6 @@ openssl rand -hex 32
 
 ### 5. 🔄 Push Database Schema
 
-Run migrations (for Prisma or Sequelize depending on your setup):
-
 ```bash
 npm run db:push
 ```
@@ -100,54 +99,76 @@ npm run db:push
 
 ### 6. 👨‍💻 Create Admin User
 
-Run the admin creation script:
-
 ```bash
 npx tsx scripts/create-admin.ts
 ```
 
-The Default admin password will generate:
-
--admin
--admin123
----
-(Change password after login)
-
-### 7. ▶️ Start the Development Server
-
-```bash
-npm run dev
-```
-
-Your app is now live at:  
-🌐 `http://localhost:5000`
-
----
-
-## 🧪 Default Admin Credentials (for demo only)
+Default Admin Credentials:
 
 ```
 Username: admin
 Password: admin123
 ```
 
-> ⚠️ Please change your admin password immediately after login.
+> ⚠️ Change password immediately after login
 
 ---
 
+
+
+## 🤖 Telegram Bot Setup
+
+1. Open Telegram and search for `@BotFather`
+2. Run the `/start` command
+3. Use `/newbot` to create a new bot
+4. Set a name and username (e.g., `CourseAccessBot`)
+5. Copy the **Bot Token** and add it to `.env`
+
+---
+
+## 🛒 WooCommerce API Setup
+
+1. Login to your **WordPress Admin Dashboard**
+2. Go to: `WooCommerce → Settings → Advanced → REST API`
+3. Click **"Add Key"**
+4. Fill in:
+   - Description: `TelegramBot`
+   - Permissions: `Read/Write`
+5. Copy your **Consumer Key** and **Consumer Secret**
+6. Add them to the `.env`
+
+---
+
+## 🧪 Default Admin Credentials
+
+```
+Username: admin
+Password: admin123
+```
+
+---
+### 7. ▶️ Start the Development Server
+
+```bash
+npm run dev
+```
+
+The app will be available at:  
+🌐 `http://localhost:5000`
+
+---
 ## 🔐 Security Notes
 
 - Never commit your `.env` file
-- Use a **strong JWT_SECRET** (at least 256 bits)
+- Use a strong JWT_SECRET (at least 256 bits)
 - Rotate credentials regularly
-- Consider HTTPS in production
-- Add logging, rate limiting, and CORS restrictions for public hosting
+- Use HTTPS in production
 
 ---
 
 ## 📬 Contact & Contributions
 
-Want to contribute or need help?
+Need help or want to contribute?
 
 - ✉️ Email: myself@ambrishbytes.tech
 
