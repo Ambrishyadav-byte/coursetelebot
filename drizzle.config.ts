@@ -12,19 +12,19 @@
 //   schema: "./shared/schema.ts",
 //   dialect: "postgresql",
 //   dbCredentials: {
-//     host: "pg-3d4cd785-ambrishyadav206-763e.c.aivencloud.com",
-//     port: 28931,
-//     user: "avnadmin",
-//     password: "AVNS_PhLFHpfnK5W2IJvLBb3",
-//     database: "defaultdb",
+//     host: "HOST_URL",
+//     port: PORT,
+//     user: "USERNAME",
+//     password: "PASSWORD",
+//     database: "db_NAME",
 //     ssl: {
 //       rejectUnauthorized: true,
-//       ca: caCert.toString(), // Convert buffer to string
-//       // For Aiven, you might need their specific CA bundle:
-//       // https://developer.aiven.io/docs/platform/howto/connect-with-ssl.html
+//       ca: caCert.toString(),
 //     },
 //   },
 // });
+
+//This is for vercel
 import { defineConfig } from "drizzle-kit";
 
 if (!process.env.DATABASE_URL) {
